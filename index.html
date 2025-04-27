@@ -1,0 +1,3251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>In-Patient Medical Record</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        :root {
+            --primary: #3f51b5;
+            --primary-light: #e8eaf6;
+            --primary-dark: #303f9f;
+            --secondary: #009688;
+            --danger: #e53935;
+            --warning: #ffb300;
+            --success: #43a047;
+            --text: #263238;
+            --text-light: #546e7a;
+            --bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --ward-bg: #e3f2fd;
+            --doctor-bg: #e8f5e9;
+        }
+
+        /* New styles for patient photo section */
+        .patient-photo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+        .patient-photo-wrapper {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background-color: #e0e0e0;
+            overflow: hidden;
+            position: relative;
+            border: 3px solid var(--primary);
+        }
+        .patient-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .photo-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+            font-size: 2rem;
+        }
+        .photo-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .photo-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--primary);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+        }
+        .photo-btn i {
+            font-size: 0.9rem;
+        }
+        .photo-btn.secondary {
+            background-color: #757575;
+        }
+        #fileInput {
+            display: none;
+        }
+        .photo-capture-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .photo-capture-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+        }
+        .camera-preview {
+            width: 100%;
+            background: #333;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        #cameraVideo {
+            width: 100%;
+            display: block;
+        }
+        .camera-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .camera-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .camera-btn.capture {
+            background-color: var(--primary);
+            color: white;
+        }
+        .camera-btn.cancel {
+            background-color: #e0e0e0;
+        }
+        #capturedPhoto {
+            display: none;
+            max-width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 200px;
+            width: 100%;
+        }
+        .chart-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-light);
+            font-size: 1rem;
+        }
+        body {
+            font-family: 'Roboto', 'Segoe UI', Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 0.9;
+            color: var(--text);
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 15px;
+            background-color: var(--bg);
+        }
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        .header::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 150px;
+            height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: translate(50px, -50px);
+        }
+        .patient-name {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.5px;
+        }
+        .admission-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .admission-badge {
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+        }
+        .admission-badge i {
+            margin-right: 6px;
+            font-size: 0.9rem;
+        }
+        .toggle-medications-btn {
+            margin-top: 10px;
+            padding: 6px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .toggle-medications-btn:hover {
+            background-color: #0056b3;
+        }
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .action-btn {
+            background-color: white;
+            color: var(--primary);
+            border: none;
+            padding: 10px 18px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .action-btn:hover {
+            background-color: var(--primary-light);
+            transform: translateY(-2px);
+        }
+        .action-btn i {
+            font-size: 1rem;
+        }
+        .action-btn.primary {
+            background-color: var(--primary);
+            color: white;
+        }
+        .action-btn.primary:hover {
+            background-color: var(--primary-dark);
+        }
+        .action-btn.danger {
+            background-color: var(--danger);
+            color: white;
+        }
+        .action-btn.danger:hover {
+            background-color: #c62828;
+        }
+        .action-btn.initial-obs {
+            background-color: var(--secondary);
+            color: white;
+            border: 2px solid var(--secondary-dark);
+        }
+        .action-btn.initial-obs:hover {
+            background-color: var(--secondary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 150, 136, 0.4);
+        }
+        .diagnosis-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            background-color: var(--primary-light);
+            border-radius: 8px;
+            color: var(--primary-dark);
+            font-weight: 500;
+            max-width: 300px;
+        }
+        .diagnosis-display i {
+            color: var(--secondary);
+        }
+        #diagnosisText {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .record-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        .section {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+        .section::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--primary), var(--secondary));
+        }
+        .section-title {
+            color: var(--primary);
+            margin-top: 0;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 20px;
+        }
+        .section-title i {
+            margin-right: 12px;
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 15px;
+        }
+        .info-label {
+            font-weight: 600;
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+        .info-value {
+            font-weight: 500;
+            word-break: break-word;
+        }
+        .highlight {
+            color: var(--danger);
+            font-weight: bold;
+        }
+        .ward-info {
+            background-color: var(--ward-bg);
+            border-left: 4px solid var(--primary);
+        }
+        .doctor-info {
+            background-color: var(--doctor-bg);
+            border-left: 4px solid var(--success);
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.1rem;
+            color: var(--text-light);
+        }
+        .medications-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .medication-item {
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid var(--primary);
+        }
+        .medication-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+        .medication-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.95rem;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: var(--text-light);
+        }
+        .no-data {
+            color: var(--text-light);
+            text-align: center;
+            padding: 10px;
+        }
+        @media (max-width: 768px) {
+            .medication-details {
+                grid-template-columns: 1fr;
+            }
+        }
+        .error {
+            color: var(--danger);
+            background-color: #ffebee;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .divider {
+            border-top: 3px solid var(--primary);
+            margin: 30px 0;
+            opacity: 0.2;
+        }
+        .vital-signs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .vital-signs-title {
+            color: var(--primary);
+            margin: 0;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+        }
+        .vital-signs-title i {
+            margin-right: 12px;
+            font-size: 1.3rem;
+        }
+        .add-vital-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(63, 81, 181, 0.3);
+        }
+        .add-vital-btn:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(63, 81, 181, 0.4);
+        }
+        .add-vital-btn i {
+            margin-right: 8px;
+            font-size: 1rem;
+        }
+        .vital-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+        .vital-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .vital-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+        .vital-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--primary), var(--secondary));
+        }
+        .vital-date {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .vital-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .vital-stat {
+            display: flex;
+            flex-direction: column;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-bottom: 5px;
+        }
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        .stat-unit {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-left: 3px;
+        }
+        .bp-value {
+            color: var(--danger);
+        }
+        .temp-value {
+            color: var(--warning);
+        }
+        .pulse-value {
+            color: var(--secondary);
+        }
+        .view-all-btn {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+        }
+        .view-all-btn:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        .view-all-btn i {
+            margin-left: 5px;
+            font-size: 0.9rem;
+        }
+        .no-vitals {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-light);
+            font-size: 1.1rem;
+            grid-column: 1 / -1;
+        }
+        .show-more-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 30px auto;
+            display: block;
+            box-shadow: 0 2px 10px rgba(63, 81, 181, 0.3);
+        }
+        .show-more-btn:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(63, 81, 181, 0.4);
+        }
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        .chart-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        .chart-title {
+            color: var(--primary);
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+        }
+        .chart-title i {
+            margin-right: 10px;
+            color: var(--primary);
+        }
+        .chart-placeholder {
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+            font-size: 1rem;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+        @media (max-width: 768px) {
+            .patient-name {
+                font-size: 1.6rem;
+            }
+            .vital-cards {
+                grid-template-columns: 1fr;
+            }
+            .info-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .info-label {
+                margin-top: 10px;
+            }
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            .admission-badge {
+                font-size: 0.8rem;
+                padding: 5px 10px;
+            }
+            .action-btn {
+                padding: 8px 14px;
+                font-size: 0.9rem;
+            }
+            /* Mobile adjustments for photo section */
+            .patient-photo-wrapper {
+                width: 100px;
+                height: 100px;
+            }
+            .photo-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+            .photo-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        @media (max-width: 480px) {
+            .header {
+                padding: 15px 20px;
+            }
+            .patient-name {
+                font-size: 1.4rem;
+            }
+            .section {
+                padding: 20px;
+            }
+            .vital-card {
+                padding: 20px;
+            }
+            .stat-value {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Patient Photo Section -->
+    <div class="patient-photo-container">
+        <div class="patient-photo-wrapper">
+            <div class="photo-placeholder" id="photoPlaceholder">
+                <i class="fas fa-user"></i>
+            </div>
+            <img id="patientPhoto" class="patient-photo" style="display: none;" alt="Patient photo">
+        </div>
+        <div class="photo-actions">
+            <button class="photo-btn" id="takePhotoBtn">
+                <i class="fas fa-camera"></i> Take Photo
+            </button>
+            <button class="photo-btn secondary" id="uploadPhotoBtn">
+                <i class="fas fa-upload"></i> Upload
+            </button>
+        </div>
+        <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <!-- Camera Capture Overlay -->
+    <div class="photo-capture-overlay" id="cameraOverlay">
+        <div class="photo-capture-container">
+            <div class="camera-preview">
+                <video id="cameraVideo" autoplay playsinline></video>
+                <img id="capturedPhoto" alt="Captured photo">
+            </div>
+            <div class="camera-controls">
+                <button class="camera-btn capture" id="captureBtn">
+                    <i class="fas fa-camera"></i> Capture
+                </button>
+                <button class="camera-btn cancel" id="cancelCaptureBtn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+            <button class="camera-btn primary" id="usePhotoBtn" style="display: none; width: 100%; margin-top: 10px;">
+                <i class="fas fa-check"></i> Use Photo
+            </button>
+        </div>
+    </div>
+
+    <div class="header">
+        <h1 class="patient-name" id="patientName">Loading patient record...</h1>
+        <div class="admission-info" id="admissionInfo">
+            <!-- Admission info will be loaded here -->
+        </div>
+        <div class="action-buttons">
+            <button class="action-btn initial-obs" id="initialObsBtn">
+                <i class="fas fa-file-medical"></i> Initial Observation
+            </button>
+            <div class="diagnosis-display" id="diagnosisDisplay">
+                <i class="fas fa-stethoscope"></i>
+                <span id="diagnosisText"></span>
+            </div>
+            </button>
+            <button class="action-btn" id="consultBtn">
+                <i class="fas fa-chart-line"></i> Investigation Reports
+            </button>
+            <button class="action-btn danger" id="dischargeBtn">
+                <i class="fas fa-sign-out-alt"></i> Discharge Patient
+            </button>
+        </div>
+    </div>
+
+    <div id="recordContainer" class="record-container">
+        <!-- Patient details will be loaded here by JavaScript -->
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Updated charts-container with canvas elements -->
+    <div class="charts-container">
+        <div class="chart-card">
+            <h3 class="chart-title"><i class="fas fa-temperature-high"></i> Temperature Trend</h3>
+            <div class="chart-container">
+                <canvas id="tempChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <h3 class="chart-title"><i class="fas fa-heartbeat"></i> Blood Pressure Trend</h3>
+            <div class="chart-container">
+                <canvas id="bpChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="vital-signs-container">
+        <div class="vital-signs-header">
+            <h2 class="vital-signs-title">
+                <i class="fas fa-heartbeat"></i> Vital Signs History
+            </h2>
+            <button class="add-vital-btn" id="addVitalBtn">
+                <i class="fas fa-plus"></i> Record Vital Signs
+            </button>
+        </div>
+        <div id="vitalSignsContainer" class="vital-cards">
+            <div class="loading">Loading vital signs data...</div>
+        </div>
+        <button id="showMoreVitalsBtn" class="show-more-btn" style="display: none;">
+            Show More Vital Signs
+        </button>
+    </div>
+
+    <script>
+        // =============================================
+        // CONSTANTS AND CONFIGURATION
+        // =============================================
+        const CONFIG = {
+            API_BASE_URL: 'https://api.baserow.io/api/database/rows/table',
+            TABLES: {
+                ADMISSIONS: 502488,
+                VITAL_SIGNS: 502528,
+                INITIAL_OBS: 502496,
+                DISCHARGES: 503205,
+                PRESCRIPTIONS: 502494
+            },
+            ROW_ID: 2, // Current admission ID
+            DOCTOR: "Dr. Smith"
+        };
+
+        // =============================================
+        // DOM ELEMENTS
+        // =============================================
+        const elements = {
+            patientName: document.getElementById('patientName'),
+            admissionInfo: document.getElementById('admissionInfo'),
+            recordContainer: document.getElementById('recordContainer'),
+            vitalSignsContainer: document.getElementById('vitalSignsContainer'),
+            addVitalBtn: document.getElementById('addVitalBtn'),
+            initialObsBtn: document.getElementById('initialObsBtn'),
+            dischargeBtn: document.getElementById('dischargeBtn'),
+            showMoreVitalsBtn: document.getElementById('showMoreVitalsBtn'),
+            tempChart: document.getElementById('tempChart'),
+            bpChart: document.getElementById('bpChart'),
+            // Photo elements
+            photoPlaceholder: document.getElementById('photoPlaceholder'),
+            patientPhoto: document.getElementById('patientPhoto'),
+            takePhotoBtn: document.getElementById('takePhotoBtn'),
+            uploadPhotoBtn: document.getElementById('uploadPhotoBtn'),
+            fileInput: document.getElementById('fileInput'),
+            cameraOverlay: document.getElementById('cameraOverlay'),
+            cameraVideo: document.getElementById('cameraVideo'),
+            captureBtn: document.getElementById('captureBtn'),
+            cancelCaptureBtn: document.getElementById('cancelCaptureBtn'),
+            usePhotoBtn: document.getElementById('usePhotoBtn'),
+            capturedPhoto: document.getElementById('capturedPhoto')
+        };
+
+        // =============================================
+        // STATE MANAGEMENT
+        // =============================================
+        const state = {
+            patientData: null,
+            allVitalSigns: [],
+            displayedVitalSigns: 3,
+            initialObservationData: null,
+            charts: {
+                temp: null,
+                bp: null
+            },
+            // Camera state
+            stream: null,
+            capturedImage: null
+        };
+
+        // =============================================
+        // PHOTO CAPTURE FUNCTIONS
+        // =============================================
+        const photoManager = {
+            init: () => {
+                // Check if camera is available
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    elements.takePhotoBtn.style.display = 'none';
+                    console.warn('Camera API not available');
+                }
+
+                // Event listeners for photo buttons
+                elements.takePhotoBtn.addEventListener('click', photoManager.openCamera);
+                elements.uploadPhotoBtn.addEventListener('click', () => elements.fileInput.click());
+                elements.fileInput.addEventListener('change', photoManager.handleFileUpload);
+                elements.captureBtn.addEventListener('click', photoManager.capturePhoto);
+                elements.cancelCaptureBtn.addEventListener('click', photoManager.closeCamera);
+                elements.usePhotoBtn.addEventListener('click', photoManager.useCapturedPhoto);
+            },
+
+            openCamera: async () => {
+                try {
+                    elements.cameraOverlay.style.display = 'flex';
+                    elements.capturedPhoto.style.display = 'none';
+                    elements.usePhotoBtn.style.display = 'none';
+                    elements.captureBtn.style.display = 'block';
+
+                    state.stream = await navigator.mediaDevices.getUserMedia({
+                        video: { 
+                            facingMode: 'user',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
+                        audio: false
+                    });
+                    elements.cameraVideo.srcObject = state.stream;
+                } catch (err) {
+                    console.error('Error accessing camera:', err);
+                    alert('Could not access the camera. Please check permissions.');
+                    photoManager.closeCamera();
+                }
+            },
+
+            closeCamera: () => {
+                if (state.stream) {
+                    state.stream.getTracks().forEach(track => track.stop());
+                    state.stream = null;
+                }
+                elements.cameraOverlay.style.display = 'none';
+                elements.cameraVideo.srcObject = null;
+            },
+
+            capturePhoto: () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = elements.cameraVideo.videoWidth;
+                canvas.height = elements.cameraVideo.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(elements.cameraVideo, 0, 0, canvas.width, canvas.height);
+
+                state.capturedImage = canvas.toDataURL('image/jpeg', 0.8);
+                elements.capturedPhoto.src = state.capturedImage;
+                elements.capturedPhoto.style.display = 'block';
+                elements.captureBtn.style.display = 'none';
+                elements.usePhotoBtn.style.display = 'block';
+            },
+
+            useCapturedPhoto: () => {
+                if (state.capturedImage) {
+                    photoManager.setPatientPhoto(state.capturedImage);
+                }
+                photoManager.closeCamera();
+            },
+
+            handleFileUpload: (event) => {
+                const file = event.target.files[0];
+                if (file && file.type.match('image.*')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        photoManager.setPatientPhoto(e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            },
+
+            setPatientPhoto: (imageData) => {
+                elements.photoPlaceholder.style.display = 'none';
+                elements.patientPhoto.src = imageData;
+                elements.patientPhoto.style.display = 'block';
+                
+                // Here you would typically save the photo to your database
+                // For demo purposes, we'll just store it in localStorage
+                localStorage.setItem('patientPhoto', imageData);
+            },
+
+            loadPatientPhoto: () => {
+                const savedPhoto = localStorage.getItem('patientPhoto');
+                if (savedPhoto) {
+                    elements.photoPlaceholder.style.display = 'none';
+                    elements.patientPhoto.src = savedPhoto;
+                    elements.patientPhoto.style.display = 'block';
+                }
+            }
+        };
+
+        // =============================================
+        // UTILITY FUNCTIONS
+        // =============================================
+        const utils = {
+            getFieldValue: (field) => {
+                if (field === null || field === undefined) return 'Not specified';
+                if (typeof field === 'string') return field;
+                if (field.value !== undefined) return field.value;
+                if (typeof field === 'object') {
+                    if (field.label) return field.label;
+                    if (field.name) return field.name;
+                    if (field.text) return field.text;
+                    if (Array.isArray(field)) {
+                        return field.map(item => item.value || item.label || item.name).join(', ');
+                    }
+                    for (const key in field) {
+                        if (field[key] && typeof field[key] === 'string') {
+                            return field[key];
+                        }
+                    }
+                }
+                return 'Not specified';
+            },
+            showLoading: (element, message = 'Loading...') => {
+                element.innerHTML = `<div class="loading">${message}</div>`;
+            },
+            showError: (element, title, message) => {
+                element.innerHTML = `
+                    <div class="error">
+                        <h3>${title}</h3>
+                        <p>${message}</p>
+                    </div>
+                `;
+            },
+            formatDate: (dateString) => {
+                if (!dateString) return '--';
+                const date = new Date(dateString);
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+        };
+
+        // =============================================
+        // API SERVICE
+        // =============================================
+        const apiService = {
+            fetchData: async (url) => {
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            'Authorization': 'Token hDh4O66MMBwClfkDA4xnr4nc5oC8kXw6'
+                        }
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error('API Error:', error);
+                    throw error;
+                }
+            },
+            postData: async (url, data) => {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Token hDh4O66MMBwClfkDA4xnr4nc5oC8kXw6',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error('API Error:', error);
+                    throw error;
+                }
+            },
+            patchData: async (url, data) => {
+                try {
+                    const response = await fetch(url, {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': 'Token hDh4O66MMBwClfkDA4xnr4nc5oC8kXw6',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error('API Error:', error);
+                    throw error;
+                }
+            }
+        };
+
+        // =============================================
+        // CHART MANAGEMENT
+        // =============================================
+        const chartManager = {
+            renderCharts: (vitalSigns) => {
+                if (!elements.tempChart || !elements.bpChart) {
+                    console.error('Chart containers not found');
+                    return;
+                }
+
+                if (!vitalSigns || vitalSigns.length === 0) {
+                    console.warn('No vital signs data available for charts');
+                    elements.tempChart.innerHTML = '<div class="chart-placeholder">No temperature data available</div>';
+                    elements.bpChart.innerHTML = '<div class="chart-placeholder">No blood pressure data available</div>';
+                    return;
+                }
+
+                // Show loading placeholders
+                elements.tempChart.innerHTML = '<div class="chart-placeholder">Loading temperature chart...</div>';
+                elements.bpChart.innerHTML = '<div class="chart-placeholder">Loading blood pressure chart...</div>';
+
+                // Sort by date (oldest first for charts)
+                const sortedVitals = [...vitalSigns].sort((a, b) => {
+                    const dateA = new Date(a.Date);
+                    const dateB = new Date(b.Date);
+                    return dateA - dateB;
+                });
+
+                // Prepare data - use consistent date formatting
+                const dates = sortedVitals.map(v => {
+                    const date = new Date(v.Date);
+                    return date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                });
+
+                const temps = sortedVitals.map(v => parseFloat(v.Temperature) || null);
+                const systolic = sortedVitals.map(v => parseFloat(v['Systolic Blood Pressure']) || null);
+                const diastolic = sortedVitals.map(v => parseFloat(v['Diastolic Blood Pressure']) || null);
+
+                // Destroy existing charts
+
+                chartManager.destroyCharts();
+
+                // Create new charts
+
+                state.charts.temp = chartManager.createChart(
+
+                    elements.tempChart,
+
+                    dates,
+
+                    'Temperature (°C)',
+
+                    temps,
+
+                    'rgb(255, 159, 64)',
+
+                    'Temperature (°C)'
+
+                );
+
+                state.charts.bp = chartManager.createChart(
+
+                    elements.bpChart,
+
+                    dates,
+
+                    ['Systolic (mmHg)', 'Diastolic (mmHg)'],
+
+                    [systolic, diastolic],
+
+                    ['rgb(255, 99, 132)', 'rgb(54, 162, 235)'],
+
+                    'Blood Pressure (mmHg)'
+
+                );
+
+            },
+
+            createChart: (canvas, labels, label, data, color, yAxisTitle) => {
+
+                const isMultiDataset = Array.isArray(label);
+
+                return new Chart(canvas, {
+
+                    type: 'line',
+
+                    data: {
+
+                        labels: labels,
+
+                        datasets: isMultiDataset ? 
+
+                            label.map((l, i) => ({
+
+                                label: l,
+
+                                data: data[i],
+
+                                borderColor: color[i],
+
+                                backgroundColor: color[i].replace('rgb', 'rgba').replace(')', ', 0.2)'),
+
+                                tension: 0.1
+
+                            })) : [{
+
+                                label: label,
+
+                                data: data,
+
+                                borderColor: color,
+
+                                backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.2)'),
+
+                                tension: 0.1,
+
+                                fill: true
+
+                            }]
+
+                    },
+
+                    options: {
+
+                        responsive: true,
+
+                        maintainAspectRatio: false,
+
+                        scales: {
+
+                            y: {
+
+                                beginAtZero: false,
+
+                                title: { display: true, text: yAxisTitle }
+
+                            },
+
+                            x: {
+
+                                title: { display: true, text: 'Date' }
+
+                            }
+
+                        }
+
+                    }
+
+                });
+
+            },
+
+            destroyCharts: () => {
+
+                if (state.charts.temp) state.charts.temp.destroy();
+
+                if (state.charts.bp) state.charts.bp.destroy();
+
+                state.charts.temp = null;
+
+                state.charts.bp = null;
+
+            }
+
+        };
+
+        // =============================================
+
+        // UPDATED DATA DISPLAY FUNCTIONS
+
+        // =============================================
+
+        const display = {
+
+            admissionRecord: (record) => {
+
+                const patientName = utils.getFieldValue(record['Patient Name']);
+
+                const age = utils.getFieldValue(record['Age']);
+
+                const sex = utils.getFieldValue(record['Sex']);
+
+                const bloodGroup = utils.getFieldValue(record['Blood Group']);
+
+                const admissionDate = utils.formatDate(record['Admission Date']);
+
+                // Update patient header
+
+                elements.patientName.textContent = patientName || 'Unknown Patient';
+
+                elements.admissionInfo.innerHTML = `
+
+                    <div class="admission-badge">
+
+                        <i class="fas fa-calendar-alt"></i> Admitted: ${admissionDate}
+
+                    </div>
+
+                    <div class="admission-badge">
+
+                        <i class="fas fa-user"></i> Age: ${age || '--'}
+
+                    </div>
+
+                    <div class="admission-badge">
+
+                        <i class="fas fa-venus-mars"></i> Sex: ${sex || '--'}
+
+                    </div>
+
+                    <div class="admission-badge">
+
+                        <i class="fas fa-tint"></i> Blood Group: ${bloodGroup || '--'}
+
+                    </div>
+
+                `;
+
+                // Update record container
+
+                elements.recordContainer.innerHTML = `
+
+                    <div class="section ward-info">
+
+                        <h2 class="section-title"><i class="fas fa-procedures"></i> Admission Details</h2>
+
+                        <div class="info-grid">
+
+                            <div class="info-label">Admission Date:</div>
+
+                            <div class="info-value">${admissionDate}</div>
+
+                            <div class="info-label">Reason for Admission:</div>
+
+                            <div class="info-value">${utils.getFieldValue(record['Reason for Admission'])}</div>
+
+                            <div class="info-label">Ward/Bed:</div>
+
+                            <div class="info-value">${utils.getFieldValue(record['Ward/Bed'])}</div>
+
+                            <div class="info-label">Referring Doctor/Hospital:</div>
+
+                            <div class="info-value">${utils.getFieldValue(record['Referring Doctor/Hospital'])}</div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="section">
+
+                        <h2 class="section-title"><i class="fas fa-user-injured"></i> Patient Information</h2>
+
+                        <div class="info-grid">
+
+                            <div class="info-label">Patient Name:</div>
+
+                            <div class="info-value">${patientName || 'Unknown Patient'}</div>
+
+                            <div class="info-label">Age:</div>
+
+                            <div class="info-value">${age || '--'}</div>
+
+                            <div class="info-label">Sex:</div>
+
+                            <div class="info-value">${sex || '--'}</div>
+
+                            <div class="info-label">Blood Group:</div>
+
+                            <div class="info-value">${bloodGroup || '--'}</div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="section doctor-info">
+
+                        <h2 class="section-title"><i class="fas fa-prescription-bottle-alt"></i> Current Medications</h2>
+
+                        <div id="currentMedications">
+
+                            <div class="loading">Loading medications...</div>
+
+                        </div>
+
+                    </div>
+
+                `;
+
+            },
+
+            currentMedications: (medications) => {
+
+                const container = document.getElementById('currentMedications');
+
+                if (!medications || medications.length === 0) {
+
+                    container.innerHTML = '<div class="no-data">No medications administered in the last 24 hours</div>';
+
+                    return;
+
+                }
+
+                // Sort by date (newest first)
+
+                medications.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+
+                const renderMedications = (limit) => {
+
+                    let html = '<div class="medications-list">';
+
+                    medications.slice(0, limit).forEach(med => {
+
+                        const medName = med.Medication || 'Unspecified medication';
+
+                        const dose = med['Dose Administered'] || '--';
+
+                        const route = med['Route of Administration'] || '--';
+
+                        const adminBy = med['Administered by'] || '--';
+
+                        const time = med.Date ? utils.formatDate(med.Date) : '--';
+
+                        html += `
+
+                            <div class="medication-item">
+
+                                <div class="medication-header">
+
+                                    <i class="fas fa-syringe"></i>
+
+                                    <strong>${medName}</strong>
+
+                                </div>
+
+                                <div class="medication-details">
+
+                                    <div><span class="detail-label">Dose:</span> ${dose}</div>
+
+                                    <div><span class="detail-label">Route:</span> ${route}</div>
+
+                                    <div><span class="detail-label">Administered By:</span> ${adminBy}</div>
+
+                                    <div><span class="detail-label">Time:</span> ${time}</div>
+
+                                </div>
+
+                            </div>
+
+                        `;
+
+                    });
+
+                    html += '</div>';
+
+                    return html;
+
+                };
+
+                // Initial render with only the first medication
+
+                let isExpanded = false;
+
+                const initialLimit = 1;
+
+                container.innerHTML = renderMedications(initialLimit);
+
+                if (medications.length > 1) {
+
+                    const toggleButton = document.createElement('button');
+
+                    toggleButton.textContent = 'See More';
+
+                    toggleButton.className = 'toggle-medications-btn';
+
+                    toggleButton.onclick = () => {
+
+                        isExpanded = !isExpanded;
+
+                        container.innerHTML = renderMedications(isExpanded ? medications.length : initialLimit);
+
+                        toggleButton.textContent = isExpanded ? 'See Less' : 'See More';
+
+                        container.appendChild(toggleButton);
+
+                    };
+
+                    container.appendChild(toggleButton);
+
+                }
+
+            },
+
+            // ADD THE NEW FUNCTION RIGHT HERE (same level as admissionRecord)
+
+            updateDiagnosis: (diagnosisText) => {
+
+                const diagnosisElement = document.getElementById('diagnosisText');
+
+                if (diagnosisElement) {
+
+                    diagnosisElement.textContent = diagnosisText || 'No diagnosis recorded';
+
+                    diagnosisElement.title = diagnosisText; // Tooltip for full text
+
+                }
+
+            },
+
+            vitalSigns: (vitalSigns) => {
+
+                if (!vitalSigns || vitalSigns.length === 0) {
+
+                    elements.vitalSignsContainer.innerHTML = '<div class="no-vitals">No vital signs records found.</div>';
+
+                    elements.showMoreVitalsBtn.style.display = 'none';
+
+                    return;
+
+                }
+
+                // Sort by date (newest first)
+
+                const sortedVitals = [...vitalSigns].sort((a, b) => new Date(b.Date) - new Date(a.Date))
+
+                let cardsHTML = '';
+
+                sortedVitals.forEach((record, index) => {
+
+                    const date = utils.formatDate(record.Date);
+
+                    const bp = `${record['Systolic Blood Pressure'] || '--'}/${record['Diastolic Blood Pressure'] || '--'}`;
+
+                    cardsHTML += `
+
+                        <div class="vital-card" onclick="toggleVitalSignDetails(${index})">
+
+                            <div class="vital-summary">
+
+                                <div class="vital-date">${date}</div>
+
+                                <div class="vital-stats">
+
+                                    <div class="vital-stat">
+
+                                        <span class="stat-label">Temp</span>
+
+                                        <span class="stat-value temp-value">${record.Temperature || '--'}<span class="stat-unit">°C</span></span>
+
+                                    </div>
+
+                                    <div class="vital-stat">
+
+                                        <span class="stat-label">Pulse</span>
+
+                                        <span class="stat-value pulse-value">${record.Pulse || '--'}<span class="stat-unit">bpm</span></span>
+
+                                    </div>
+
+                                    <div class="vital-stat">
+
+                                        <span class="stat-label">BP</span>
+
+                                        <span class="stat-value bp-value">${bp}<span class="stat-unit">mmHg</span></span>
+
+                                    </div>
+
+                                    <div class="vital-stat">
+
+                                        <span class="stat-label">SPO2</span>
+
+                                        <span class="stat-value">${record.SPO2 || '--'}<span class="stat-unit">%</span></span>
+
+                                    </div>
+
+                                </div>
+
+                                <button class="view-details-btn" onclick="event.stopPropagation(); toggleVitalSignDetails(${index})">
+
+                                    <i class="fas fa-chevron-down"></i>
+
+                                </button>
+
+                            </div>
+
+                            <div class="vital-details" id="vitalDetails-${index}" style="display:none;">
+
+                                <div class="details-grid">
+
+                                    <div class="detail-item">
+
+                                        <span class="detail-label">Respiration:</span>
+
+                                        <span class="detail-value">${record.Respiration || '--'} breaths/min</span>
+
+                                    </div>
+
+                                    <div class="detail-item">
+
+                                        <span class="detail-label">Weight:</span>
+
+                                        <span class="detail-value">${record['Weight (kg)'] || '--'} kg</span>
+
+                                    </div>
+
+                                    <div class="detail-item">
+
+                                        <span class="detail-label">Height:</span>
+
+                                        <span class="detail-value">${record['Height (m)'] || '--'} m</span>
+
+                                    </div>
+
+                                    <div class="detail-item">
+
+                                        <span class="detail-label">BMI:</span>
+
+                                        <span class="detail-value">${record.BMI || '--'}</span>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                });
+
+                elements.vitalSignsContainer.innerHTML = cardsHTML;
+
+                // Show "Show More" button if there are more records to display
+
+                if (state.allVitalSigns.length > state.displayedVitalSigns) {
+
+                    elements.showMoreVitalsBtn.style.display = 'block';
+
+                } else {
+
+                    elements.showMoreVitalsBtn.style.display = 'none';
+
+                }
+
+            }
+
+        };
+
+        // =============================================
+
+        // UPDATED DATA FETCHING FUNCTIONS
+
+        // =============================================
+
+        const dataService = {
+
+            fetchCurrentMedications: async () => {
+
+                try {
+
+                    // Calculate date 24 hours ago
+
+                    const twentyFourHoursAgo = new Date();
+
+                    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+                    const formattedDate = twentyFourHoursAgo.toISOString();
+
+                    // Fetch medication administrations from last 24 hours
+
+                    const url = `${CONFIG.API_BASE_URL}/502492/?user_field_names=true&filter__field_3970714__contains=${CONFIG.ROW_ID}&filter__field_3970708__date_after=${formattedDate}`;
+
+                    const data = await apiService.fetchData(url);
+
+                    // Return only the fields we need
+
+                    return data.results.map(med => ({
+
+                        Medication: med.Medication,
+
+                        'Dose Administered': med['Dose Administered'],
+
+                        'Route of Administration': med['Route of Administration'],
+
+                        Date: med.Date,
+
+                        'Administered by': med['Administered by']
+
+                    }));
+
+                } catch (error) {
+
+                    console.error('Error fetching current medications:', error);
+
+                    return [];
+
+                }
+
+            },
+
+            fetchAdmissionRecord: async () => {
+
+                try {
+
+                    utils.showLoading(elements.recordContainer);
+
+                    // Fetch admission record
+
+                    const url = `${CONFIG.API_BASE_URL}/${CONFIG.TABLES.ADMISSIONS}/${CONFIG.ROW_ID}/?user_field_names=true`;
+
+                    const data = await apiService.fetchData(url);
+
+                    state.patientData = data;
+
+                    // Display basic admission info
+
+                    display.admissionRecord(data);
+
+                    // Fetch all additional data in parallel for better performance
+
+                    await Promise.all([
+
+                        dataService.fetchVitalSigns(),
+
+                        dataService.fetchInitialObservation(),
+
+                        dataService.fetchCurrentMedications().then(meds => {
+
+                            // Update the medications display
+
+                            const medsContainer = document.getElementById('currentMedications');
+
+                            if (medsContainer) {
+
+                                display.currentMedications(meds);
+
+                            }
+
+                        })
+
+                    ]);
+
+                } catch (error) {
+
+                    console.error('Error fetching admission record:', error);
+
+                    utils.showError(
+
+                        elements.recordContainer,
+
+                        'Error Loading Admission Record',
+
+                        error.message
+
+                    );
+
+                    // Ensure medications section shows error if container exists
+
+                    const medsContainer = document.getElementById('currentMedications');
+
+                    if (medsContainer) {
+
+                        medsContainer.innerHTML = '<div class="error">Failed to load medications</div>';
+
+                    }
+
+                }
+
+            },
+
+            fetchVitalSigns: async () => {
+
+                try {
+
+                    utils.showLoading(elements.vitalSignsContainer);
+
+                    const url = `${CONFIG.API_BASE_URL}/${CONFIG.TABLES.VITAL_SIGNS}/?user_field_names=true&filter__field_3971066__contains=${CONFIG.ROW_ID}`;
+
+                    const data = await apiService.fetchData(url);
+
+                    // Sort by datetime (newest first)
+
+                    state.allVitalSigns = data.results.sort((a, b) => {
+
+                        const dateA = new Date(a.Date);
+
+                        const dateB = new Date(b.Date);
+
+                        return dateB - dateA; // This will sort newest first
+
+                    });
+
+                    display.vitalSigns(state.allVitalSigns.slice(0, state.displayedVitalSigns));
+
+                    chartManager.renderCharts(state.allVitalSigns);
+
+                } catch (error) {
+
+                    console.error('Error fetching vital signs:', error);
+
+                    utils.showError(
+
+                        elements.vitalSignsContainer,
+
+                        'Error Loading Vital Signs',
+
+                        error.message
+
+                    );
+
+                }
+
+            },
+
+            fetchInitialObservation: async () => {
+
+                try {
+
+                    const url = `${CONFIG.API_BASE_URL}/${CONFIG.TABLES.INITIAL_OBS}/?user_field_names=true&filter__field_3970740__contains=${CONFIG.ROW_ID}`;
+
+                    const data = await apiService.fetchData(url);
+
+                    state.initialObservationData = data.results.length > 0 ? data.results[0] : null;
+
+                } catch (error) {
+
+                    console.error('Error fetching initial observation:', error);
+
+                }
+
+            },
+
+            dischargePatient: async (formData) => {
+
+                try {
+
+                    // First update the admission record
+
+                    const admissionUrl = `${CONFIG.API_BASE_URL}/${CONFIG.TABLES.ADMISSIONS}/${CONFIG.ROW_ID}/?user_field_names=true`;
+
+                    const admissionUpdate = {
+
+                        "Discharge Date": formData.DischargeDate,
+
+                        "Discharge Status": formData.DischargeStatus,
+
+                        "Status": "Discharged"
+
+                    };
+
+                    await apiService.patchData(admissionUrl, admissionUpdate);
+
+                    // Then create a discharge record
+
+                    const dischargeUrl = `${CONFIG.API_BASE_URL}/${CONFIG.TABLES.DISCHARGES}/?user_field_names=true`;
+
+                    const dischargeData = {
+
+                        "Admission ID": CONFIG.ROW_ID,
+
+                        "Discharge Date": formData["Discharge Date"],
+
+                        "Discharge Status": formData["Discharge Status"],
+
+                        "Discharge Summary": formData["Discharge Summary"],
+
+                        "Discharged By": CONFIG.DOCTOR,
+
+                        "Patient Name": formData["Patient Name"]
+
+                    };
+
+                    const response = await apiService.postData(dischargeUrl, dischargeData);
+
+                    if (response && response.id) {
+
+                        return true;
+
+                    }
+
+                    throw new Error('Failed to create discharge record');
+
+                } catch (error) {
+
+                    console.error('Error discharging patient:', error);
+
+                    throw error;
+
+                }
+
+            },
+
+            submitVitalSigns: async (formData) => {
+
+                try {
+
+                    // Add required fields for your API
+
+                    const apiFormData = {
+
+                        ...formData,
+
+                        field_6459: CONFIG.ROW_ID, // Admission ID field
+
+                        field_6460: formData.Date,  // Date field
+
+                        field_6461: formData.Temperature, // Temperature field
+
+                        // Add other field mappings as required by your API
+
+                    };
+
+                    const url = `${CONFIG.API_BASE_URL}/${CONFIG.TABLES.VITAL_SIGNS}/?user_field_names=true`;
+
+                    const response = await apiService.postData(url, apiFormData);
+
+                    if (response && response.id) {
+
+                        await dataService.fetchVitalSigns();
+
+                        return true;
+
+                    }
+
+                    throw new Error('Failed to save vital signs');
+
+                } catch (error) {
+
+                    console.error('Error saving vital signs:', error);
+
+                    alert(`Error saving vital signs: ${error.message}`);
+
+                    return false;
+
+                }
+
+            },
+
+            submitInitialObservation: async (formData, isUpdate = false) => {
+
+                try {
+
+                    const url = isUpdate ?
+
+                        `${CONFIG.API_BASE_URL}/${CONFIG.TABLES.INITIAL_OBS}/${state.initialObservationData.id}/?user_field_names=true` :
+
+                        `${CONFIG.API_BASE_URL}/${CONFIG.TABLES.INITIAL_OBS}/?user_field_names=true`;
+
+                    const method = isUpdate ? 'PATCH' : 'POST';
+
+                    await apiService[isUpdate ? 'patchData' : 'postData'](url, formData);
+
+                    await dataService.fetchInitialObservation();
+
+                    return true;
+
+                } catch (error) {
+
+                    console.error('Error saving initial observation:', error);
+
+                    alert('Error saving initial observation: ' + error.message);
+
+                    return false;
+
+                }
+
+            }
+
+        };
+
+        // =============================================
+
+        // HELPER FUNCTIONS FOR VITAL SIGNS
+
+        // =============================================
+
+        function toggleVitalSignDetails(index) {
+
+            const detailsElement = document.getElementById(`vitalDetails-${index}`);
+
+            const btnIcon = document.querySelector(`#vitalDetails-${index}`).previousElementSibling.querySelector('i');
+
+            if (detailsElement.style.display === 'none') {
+
+                detailsElement.style.display = 'block';
+
+                btnIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+
+            } else {
+
+                detailsElement.style.display = 'none';
+
+                btnIcon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+
+            }
+
+        }
+
+        function showMoreVitals() {
+
+            state.displayedVitalSigns += 3;
+
+            if (state.displayedVitalSigns >= state.allVitalSigns.length) {
+
+                elements.showMoreVitalsBtn.style.display = 'none';
+
+            }
+
+            display.vitalSigns(state.allVitalSigns.slice(0, state.displayedVitalSigns));
+
+        }
+
+        // Initialize with first 3 records
+
+        state.displayedVitalSigns = 3;
+
+        // =============================================
+
+        // POPUP WINDOW FUNCTIONS (UPDATED)
+
+        // =============================================
+
+        const popups = {
+
+            openVitalSignsPopup: (index) => {
+
+                const record = state.allVitalSigns[index];
+
+                const date = utils.formatDate(record.Date);
+
+                const bp = `${record['Systolic Blood Pressure'] || '--'}/${record['Diastolic Blood Pressure'] || '--'}`;
+
+                const popupContent = `
+
+                    <!DOCTYPE html>
+
+                    <html>
+
+                    <head>
+
+                        <title>Vital Signs Details</title>
+
+                        <style>
+
+                            body {
+
+                                font-family: 'Roboto', sans-serif;
+
+                                padding: 20px;
+
+                                background-color: #f5f5f5;
+
+                            }
+
+                            .popup-container {
+
+                                background: white;
+
+                                border-radius: 8px;
+
+                                padding: 20px;
+
+                                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+                                max-width: 600px;
+
+                                margin: 0 auto;
+
+                            }
+
+                            .header {
+
+                                display: flex;
+
+                                justify-content: space-between;
+
+                                margin-bottom: 20px;
+
+                                padding-bottom: 10px;
+
+                                border-bottom: 1px solid #eee;
+
+                            }
+
+                            .patient-name {
+
+                                font-weight: bold;
+
+                                color: #3f51b5;
+
+                                font-size: 1.2rem;
+
+                            }
+
+                            .vital-date {
+
+                                color: #666;
+
+                            }
+
+                            h2 {
+
+                                color: #3f51b5;
+
+                                margin-top: 0;
+
+                            }
+
+                            .detail-grid {
+
+                                display: grid;
+
+                                grid-template-columns: 1fr 1fr;
+
+                                gap: 15px;
+
+                            }
+
+                            .detail-item {
+
+                                margin-bottom: 15px;
+
+                            }
+
+                            .detail-label {
+
+                                font-weight: bold;
+
+                                color: #555;
+
+                                font-size: 0.9rem;
+
+                            }
+
+                            .detail-value {
+
+                                font-size: 1rem;
+
+                            }
+
+                            .highlight {
+
+                                color: #e53935;
+
+                                font-weight: bold;
+
+                            }
+
+                        </style>
+
+                    </head>
+
+                    <body>
+
+                        <div class="popup-container">
+
+                            <div class="header">
+
+                                <div>
+
+                                    <div class="patient-name">${elements.patientName.textContent}</div>
+
+                                    <div class="vital-date">${date}</div>
+
+                                </div>
+
+                            </div>
+
+                            <h2>Vital Signs Details</h2>
+
+                            <div class="detail-grid">
+
+                                <div class="detail-item">
+
+                                    <div class="detail-label">Temperature</div>
+
+                                    <div class="detail-value">${record.Temperature || '--'} °C</div>
+
+                                </div>
+
+                                <div class="detail-item">
+
+                                    <div class="detail-label">Pulse</div>
+
+                                    <div class="detail-value">${record.Pulse || '--'} bpm</div>
+
+                                </div>
+
+                                <div class="detail-item">
+
+                                    <div class="detail-label">Blood Pressure</div>
+
+                                    <div class="detail-value highlight">${bp} mmHg</div>
+
+                                </div>
+
+                                <div class="detail-item">
+
+                                    <div class="detail-label">Respiration</div>
+
+                                    <div class="detail-value">${record.Respiration || '--'}</div>
+
+                                </div>
+
+                                <div class="detail-item">
+
+                                    <div class="detail-label">SPO2</div>
+
+                                    <div class="detail-value">${record.SPO2 || '--'}%</div>
+
+                                </div>
+
+                                <div class="detail-item">
+
+                                    <div class="detail-label">Weight</div>
+
+                                    <div class="detail-value">${record['Weight (kg)'] || '--'} kg</div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </body>
+
+                    </html>
+
+                `;
+
+                const popup = window.open('', 'VitalSignsDetails', 'width=650,height=600,scrollbars=yes,resizable=yes');
+
+                if (popup) {
+
+                    popup.document.write(popupContent);
+
+                    popup.document.close();
+
+                } else {
+
+                    alert('Popup window was blocked. Please allow popups for this site.');
+
+                }
+
+            },
+
+            openVitalSignsForm: () => {
+
+                const patientName = elements.patientName.textContent;
+
+                const today = new Date().toISOString().split('T')[0];
+
+                const formContent = `
+
+                    <!DOCTYPE html>
+
+                    <html>
+
+                    <head>
+
+                        <title>Record Vital Signs</title>
+
+                        <style>
+
+                            body {
+
+                                font-family: 'Roboto', sans-serif;
+
+                                padding: 20px;
+
+                                background: #f5f5f5;
+
+                            }
+
+                            .form-container {
+
+                                background: white;
+
+                                padding: 20px;
+
+                                border-radius: 8px;
+
+                                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+                                max-width: 500px;
+
+                                margin: 0 auto;
+
+                            }
+
+                            h2 {
+
+                                margin-top: 0;
+
+                                color: #3f51b5;
+
+                            }
+
+                            .form-group {
+
+                                margin-bottom: 15px;
+
+                            }
+
+                            label {
+
+                                display: block;
+
+                                margin-bottom: 5px;
+
+                                font-weight: bold;
+
+                                color: #555;
+
+                            }
+
+                            input, select {
+
+                                width: 100%;
+
+                                padding: 8px;
+
+                                border: 1px solid #ddd;
+
+                                border-radius: 4px;
+
+                                box-sizing: border-box;
+
+                            }
+
+                            .form-row {
+
+                                display: flex;
+
+                                gap: 15px;
+
+                            }
+
+                            .form-row .form-group {
+
+                                flex: 1;
+
+                            }
+
+                            .form-actions {
+
+                                margin-top: 20px;
+
+                                text-align: right;
+
+                            }
+
+                            button {
+
+                                padding: 8px 16px;
+
+                                border: none;
+
+                                border-radius: 4px;
+
+                                cursor: pointer;
+
+                            }
+
+                            .submit-btn {
+
+                                background: #3f51b5;
+
+                                color: white;
+
+                            }
+
+                        </style>
+
+                    </head>
+
+                    <body>
+
+                        <div class="form-container">
+
+                            <h2>Record Vital Signs</h2>
+
+                            <form id="vitalSignsForm">
+
+                                <div class="form-group">
+
+                                    <label for="patientName">Patient Name</label>
+
+                                    <input type="text" id="patientName" value="${patientName}" readonly>
+
+                                </div>
+
+                                <div class="form-row">
+
+                                    <div class="form-group">
+
+                                        <label for="date">Date</label>
+
+                                        <input type="date" id="date" value="${today}" required>
+
+                                    </div>
+
+                                    <div class="form-group">
+
+                                        <label for="temperature">Temperature (°C)</label>
+
+                                        <input type="number" id="temperature" step="0.1" min="30" max="45">
+
+                                    </div>
+
+                                </div>
+
+                                <div class="form-row">
+
+                                    <div class="form-group">
+
+                                        <label for="pulse">Pulse (bpm)</label>
+
+                                        <input type="number" id="pulse" min="30" max="200">
+
+                                    </div>
+
+                                    <div class="form-group">
+
+                                        <label for="respiration">Respiration</label>
+
+                                        <input type="number" id="respiration" min="5" max="60">
+
+                                    </div>
+
+                                </div>
+
+                                <div class="form-row">
+
+                                    <div class="form-group">
+
+                                        <label for="systolic">Systolic BP</label>
+
+                                        <input type="number" id="systolic" min="50" max="250">
+
+                                    </div>
+
+                                    <div class="form-group">
+
+                                        <label for="diastolic">Diastolic BP</label>
+
+                                        <input type="number" id="diastolic" min="30" max="150">
+
+                                    </div>
+
+                                </div>
+
+                                <div class="form-row">
+
+                                    <div class="form-group">
+
+                                        <label for="SPO2">SPO2 (bpm)</label>
+
+                                        <input type="number" id="spo2" min="30" max="100">
+
+                                    </div>
+
+                                </div>
+
+                                <div class="form-actions">
+
+                                    <button type="button" onclick="window.close()">Cancel</button>
+
+                                    <button type="submit" class="submit-btn">Submit</button>
+
+                                </div>
+
+                            </form>
+
+                        </div>
+
+                        <script>
+
+                            document.getElementById('vitalSignsForm').addEventListener('submit', function(e) {
+
+                                e.preventDefault();
+
+                                const formData = {
+
+                                    "Admission ID": ${CONFIG.ROW_ID},
+
+                                    "Patient Name": document.getElementById('patientName').value,
+
+                                    "Temperature": document.getElementById('temperature').value,
+
+                                    "Pulse": document.getElementById('pulse').value,
+
+                                    "Respiration": document.getElementById('respiration').value,
+
+                                    "Systolic Blood Pressure": document.getElementById('systolic').value,
+
+                                    "Diastolic Blood Pressure": document.getElementById('diastolic').value,
+
+                                    "SPO2": document.getElementById('spo2').value
+
+                                };
+
+                                window.opener.postMessage({ 
+
+                                    type: 'SUBMIT_VITAL_SIGNS', 
+
+                                    data: formData 
+
+                                }, '*');
+
+                                window.close();
+
+                            });
+
+                        <\/script>
+
+                    </body>
+
+                    </html>
+
+                `;
+
+                const popup = window.open('', 'RecordVitalSigns', 'width=600,height=650,scrollbars=yes,resizable=yes');
+
+                if (popup) {
+
+                    popup.document.write(formContent);
+
+                    popup.document.close();
+
+                } else {
+
+                    alert('Popup window was blocked. Please allow popups for this site.');
+
+                }
+
+            },
+
+            openInitialObservationForm: () => {
+
+                const patientName = elements.patientName.textContent;
+
+                const today = new Date().toISOString().split('T')[0];
+
+                const isUpdate = state.initialObservationData !== null;
+
+                const existingData = state.initialObservationData;
+
+                const formContent = `
+
+                    <!DOCTYPE html>
+
+                    <html>
+
+                    <head>
+
+                        <title>${isUpdate ? 'Update' : 'Record'} Initial Observation</title>
+
+                        <style>
+
+                            body {
+
+                                font-family: 'Roboto', sans-serif;
+
+                                padding: 20px;
+
+                                background: #f5f5f5;
+
+                            }
+
+                            .form-container {
+
+                                background: white;
+
+                                padding: 20px;
+
+                                border-radius: 8px;
+
+                                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+                                max-width: 600px;
+
+                                margin: 0 auto;
+
+                            }
+
+                            h2 {
+
+                                margin-top: 0;
+
+                                color: #3f51b5;
+
+                            }
+
+                            .form-group {
+
+                                margin-bottom: 15px;
+
+                            }
+
+                            label {
+
+                                display: block;
+
+                                margin-bottom: 5px;
+
+                                font-weight: bold;
+
+                                color: #555;
+
+                            }
+
+                            input, textarea {
+
+                                width: 100%;
+
+                                padding: 8px;
+
+                                border: 1px solid #ddd;
+
+                                border-radius: 4px;
+
+                                box-sizing: border-box;
+
+                            }
+
+                            textarea {
+
+                                min-height: 100px;
+
+                                resize: vertical;
+
+                            }
+
+                            .form-row {
+
+                                display: flex;
+
+                                gap: 15px;
+
+                            }
+
+                            .form-row .form-group {
+
+                                flex: 1;
+
+                            }
+
+                            .form-actions {
+
+                                margin-top: 20px;
+
+                                text-align: right;
+
+                            }
+
+                            button {
+
+                                padding: 8px 16px;
+
+                                border: none;
+
+                                border-radius: 4px;
+
+                                cursor: pointer;
+
+                            }
+
+                            .submit-btn {
+
+                                background: #3f51b5;
+
+                                color: white;
+
+                            }
+
+                        </style>
+
+                    </head>
+
+                    <body>
+
+                        <div class="form-container">
+
+                            <h2>${isUpdate ? 'Update' : 'Record'} Initial Observation</h2>
+
+                            <form id="initialObsForm">
+
+                                <div class="form-row">
+
+                                    <div class="form-group">
+
+                                        <label for="patientName">Patient Name</label>
+
+                                        <input type="text" id="patientName" value="${patientName}" readonly>
+
+                                    </div>
+
+                                    <div class="form-group">
+
+                                        <label for="date">Date</label>
+
+                                        <input type="date" id="date" value="${today}" required>
+
+                                    </div>
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="complaints">Presenting Complaints</label>
+
+                                    <textarea id="complaints">${existingData ? existingData['Presenting Complaints'] || '' : ''}</textarea>
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="history">Medical History</label>
+
+                                    <textarea id="history">${existingData ? existingData['Past Medical Conditions'] || '' : ''}</textarea>
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="examination">Examination Findings</label>
+
+                                    <textarea id="examination">${existingData ? existingData['Examination Findings'] || '' : ''}</textarea>
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="medications">Current Medications</label>
+
+                                    <textarea id="medications">${existingData ? existingData['Current Medications'] || '' : ''}</textarea>
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="diagnosis">Initial Diagnosis</label>
+
+                                    <textarea id="diagnosis">${existingData ? existingData['Initial Diagnosis'] || '' : ''}</textarea>
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="plan">Plan</label>
+
+                                    <textarea id="plan">${existingData ? existingData['Plan'] || '' : ''}</textarea>
+
+                                </div>
+
+                                <div class="form-actions">
+
+                                    <button type="button" onclick="window.close()">Cancel</button>
+
+                                    <button type="submit" class="submit-btn">${isUpdate ? 'Update' : 'Submit'}</button>
+
+                                </div>
+
+                            </form>
+
+                        </div>
+
+                        <script>
+
+                            document.getElementById('initialObsForm').addEventListener('submit', function(e) {
+
+                                e.preventDefault();
+
+                                const formData = {
+
+                                    "Admission ID": ${CONFIG.ROW_ID},
+
+                                    "Patient Name": document.getElementById('patientName').value,
+
+                                    "Date": document.getElementById('date').value,
+
+                                    "Presenting Complaints": document.getElementById('complaints').value,
+
+                                    "Past Medical Conditions": document.getElementById('history').value,
+
+                                    "Examination Findings": document.getElementById('examination').value,
+
+                                    "Current Medications": document.getElementById('medications').value,
+
+                                    "Initial Diagnosis": document.getElementById('diagnosis').value,
+
+                                    "Plan": document.getElementById('plan').value
+
+                                };
+
+                                window.opener.postMessage({ 
+
+                                    type: 'SUBMIT_INITIAL_OBS', 
+
+                                    data: formData,
+
+                                    rowId: ${isUpdate ? existingData.id : 'null'}
+
+                                }, '*');
+
+                                window.close();
+
+                            });
+
+                        <\/script>
+
+                    </body>
+
+                    </html>
+
+                `;
+
+                const popup = window.open('', 'InitialObservation', 'width=700,height=800,scrollbars=yes,resizable=yes');
+
+                if (popup) {
+
+                    popup.document.write(formContent);
+
+                    popup.document.close();
+
+                } else {
+
+                    alert('Popup window was blocked. Please allow popups for this site.');
+
+                }
+
+            },
+
+            openDischargeForm: () => {
+
+                const patientName = elements.patientName.textContent;
+
+                const today = new Date().toISOString().split('T')[0];
+
+                const formContent = `
+
+                    <!DOCTYPE html>
+
+                    <html>
+
+                    <head>
+
+                        <title>Discharge Patient</title>
+
+                        <style>
+
+                            body {
+
+                                font-family: 'Roboto', sans-serif;
+
+                                padding: 20px;
+
+                                background: #f5f5f5;
+
+                            }
+
+                            .form-container {
+
+                                background: white;
+
+                                padding: 20px;
+
+                                border-radius: 8px;
+
+                                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+                                max-width: 600px;
+
+                                margin: 0 auto;
+
+                            }
+
+                            h2 {
+
+                                margin-top: 0;
+
+                                color: #e53935;
+
+                            }
+
+                            .form-group {
+
+                                margin-bottom: 15px;
+
+                            }
+
+                            label {
+
+                                display: block;
+
+                                margin-bottom: 5px;
+
+                                font-weight: bold;
+
+                                color: #555;
+
+                            }
+
+                            input, textarea, select {
+
+                                width: 100%;
+
+                                padding: 8px;
+
+                                border: 1px solid #ddd;
+
+                                border-radius: 4px;
+
+                                box-sizing: border-box;
+
+                            }
+
+                            textarea {
+
+                                min-height: 100px;
+
+                                resize: vertical;
+
+                            }
+
+                            .form-actions {
+
+                                margin-top: 20px;
+
+                                text-align: right;
+
+                            }
+
+                            button {
+
+                                padding: 8px 16px;
+
+                                border: none;
+
+                                border-radius: 4px;
+
+                                cursor: pointer;
+
+                            }
+
+                            .cancel-btn {
+
+                                background: #f5f5f5;
+
+                                color: #333;
+
+                            }
+
+                            .submit-btn {
+
+                                background: #e53935;
+
+                                color: white;
+
+                            }
+
+                            .warning {
+
+                                color: #e53935;
+
+                                font-weight: bold;
+
+                                margin: 15px 0;
+
+                            }
+
+                        </style>
+
+                    </head>
+
+                    <body>
+
+                        <div class="form-container">
+
+                            <h2><i class="fas fa-sign-out-alt"></i> Discharge Patient</h2>
+
+                            <form id="dischargeForm">
+
+                                <div class="form-group">
+
+                                    <label for="patientName">Patient Name</label>
+
+                                    <input type="text" id="patientName" value="${patientName}" readonly>
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="dischargeDate">Discharge Date</label>
+
+                                    <input type="date" id="dischargeDate" value="${today}" required>
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="dischargeStatus">Discharge Status</label>
+
+                                    <select id="dischargeStatus" required>
+
+                                        <option value="">Select status</option>
+
+                                        <option value="Recovered">Recovered</option>
+
+                                        <option value="Referred">Referred</option>
+
+                                        <option value="Against Medical Advice">Against Medical Advice</option>
+
+                                        <option value="Deceased">Deceased</option>
+
+                                    </select>
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="dischargeSummary">Discharge Summary</label>
+
+                                    <textarea id="dischargeSummary" placeholder="Include final diagnosis, treatment given, and follow-up instructions"></textarea>
+
+                                </div>
+
+                                <div class="warning">
+
+                                    <i class="fas fa-exclamation-triangle"></i> This action cannot be undone. Please verify all information before submitting.
+
+                                </div>
+
+                                <div class="form-actions">
+
+                                    <button type="button" class="cancel-btn" onclick="window.close()">Cancel</button>
+
+                                    <button type="submit" class="submit-btn">Confirm Discharge</button>
+
+                                </div>
+
+                            </form>
+
+                        </div>
+
+                        <script>
+
+                            document.getElementById('dischargeForm').addEventListener('submit', async function(e) {
+
+                                e.preventDefault();
+
+                                const formData = {
+
+                                    "Patient Name": document.getElementById('patientName').value,
+
+                                    "Discharge Date": document.getElementById('dischargeDate').value,
+
+                                    "Discharge Status": document.getElementById('dischargeStatus').value,
+
+                                    "Discharge Summary": document.getElementById('dischargeSummary').value,
+
+                                    "Admission ID": ${CONFIG.ROW_ID},
+
+                                    "Discharged By": "${CONFIG.DOCTOR}"
+
+                                };
+
+                                try {
+
+                                    // Show loading state
+
+                                    const submitBtn = document.querySelector('.submit-btn');
+
+                                    submitBtn.disabled = true;
+
+                                    submitBtn.textContent = 'Processing...';
+
+                                    // Send to parent window
+
+                                    window.opener.postMessage({ 
+
+                                        type: 'DISCHARGE_PATIENT', 
+
+                                        data: formData 
+
+                                    }, '*');
+
+                                    // Close after short delay to ensure message is sent
+
+                                    setTimeout(() => window.close(), 500);
+
+                                } catch (error) {
+
+                                    console.error('Discharge error:', error);
+
+                                    alert('Discharge failed: ' + error.message);
+
+                                    document.querySelector('.submit-btn').disabled = false;
+
+                                }
+
+                            });
+
+                        <\/script>
+
+                    </body>
+
+                    </html>
+
+                `;
+
+                const popup = window.open('', 'DischargePatient', 'width=650,height=700,scrollbars=yes,resizable=yes');
+
+                if (popup) {
+
+                    popup.document.write(formContent);
+
+                    popup.document.close();
+
+                } else {
+
+                    alert('Popup window was blocked. Please allow popups for this site.');
+
+                }
+
+            }
+
+        };
+
+        // =============================================
+
+        // EVENT HANDLERS (UPDATED)
+
+        // =============================================
+
+        const eventHandlers = {
+
+            handleMessage: async (event) => {
+
+                try {
+
+                    if (event.data.type === 'SUBMIT_VITAL_SIGNS') {
+
+                        await dataService.submitVitalSigns(event.data.data);
+
+                        await dataService.fetchVitalSigns();
+
+                        alert('Vital signs recorded successfully!');
+
+                    }
+
+                    if (event.data.type === 'SUBMIT_INITIAL_OBS') {
+
+                        const isUpdate = event.data.rowId !== null;
+
+                        await dataService.submitInitialObservation(event.data.data, isUpdate);
+
+                        await dataService.fetchInitialObservation();
+
+                        alert(`Initial observation ${isUpdate ? 'updated' : 'recorded'} successfully!`);
+
+                    }
+
+                    if (event.data.type === 'DISCHARGE_PATIENT') {
+
+                        try {
+
+                            await dataService.dischargePatient(event.data.data);
+
+                            alert('Patient discharged successfully!');
+
+                            // Redirect or refresh as needed
+
+                            window.location.href = '/patients'; // Or wherever you want to go
+
+                        } catch (error) {
+
+                            console.error('Discharge failed:', error);
+
+                            alert('Discharge failed: ' + error.message);
+
+                        }
+
+                    }
+
+                } catch (error) {
+
+                    console.error('Error handling message:', error);
+
+                    alert('Error: ' + error.message);
+
+                }
+
+            },
+
+            showMoreVitals: () => {
+
+                state.displayedVitalSigns = state.allVitalSigns.length; // Show all
+
+                display.vitalSigns(state.allVitalSigns);
+
+                elements.showMoreVitalsBtn.style.display = 'none';
+
+            }
+
+        };
+
+        // =============================================
+
+        // INITIALIZATION (UPDATED)
+
+        // =============================================
+
+        const app = {
+
+            init: () => {
+
+                try {
+
+                    // Verify elements exist before adding listeners
+
+                    const safeAddListener = (element, event, handler) => {
+
+                        if (element && typeof handler === 'function') {
+
+                            element.addEventListener(event, handler);
+
+                        } else {
+
+                            console.warn(`Failed to add ${event} listener to`, element);
+
+                        }
+
+                    };
+
+                    // Add event listeners with null checks
+
+                    safeAddListener(elements.addVitalBtn, 'click', popups.openVitalSignsForm);
+
+                    safeAddListener(elements.initialObsBtn, 'click', popups.openInitialObservationForm);
+
+                    safeAddListener(elements.showMoreVitalsBtn, 'click', eventHandlers.showMoreVitals);
+
+                    safeAddListener(elements.dischargeBtn, 'click', () => popups.openDischargeForm());
+
+                    safeAddListener(document.getElementById('consultBtn'), 'click', () => {
+
+                        const url = 'https://baserow.io/builder/137698/preview/page-6'; // <-- Replace this with your real URL
+
+                        const windowFeatures = 'width=900,height=600,resizable=yes,scrollbars=yes,status=no';
+
+                        window.open(url, 'InvestigationReportWindow', windowFeatures);
+
+                    });
+
+                    // Window events don't need null check
+
+                    window.addEventListener('message', eventHandlers.handleMessage);
+
+                    // Make functions available globally (with null checks)
+
+                    window.app = window.app || {};
+
+                    Object.assign(window.app, {
+
+                        openVitalSignsPopup: popups.openVitalSignsPopup,
+
+                        openVitalSignsForm: popups.openVitalSignsForm,
+
+                        openInitialObservationForm: popups.openInitialObservationForm
+
+                    });
+
+                    // Load initial data
+
+                    if (dataService && dataService.fetchAdmissionRecord) {
+
+                        dataService.fetchAdmissionRecord();
+
+                    } else {
+
+                        console.error('Data service not properly initialized');
+
+                    }
+
+                } catch (error) {
+
+                    console.error('Initialization failed:', error);
+
+                    // Consider showing a user-friendly error message
+
+                    alert('Application failed to initialize. Please refresh the page.');
+
+                }
+
+            }
+
+        };
+
+        // Start the application when DOM is loaded
+
+        if (document.readyState === 'loading') {
+
+            document.addEventListener('DOMContentLoaded', app.init);
+
+        } else {
+
+            // DOM already loaded
+
+            app.init();
+
+        }
+
+    </script>
+
+</body>
+
+</html>
